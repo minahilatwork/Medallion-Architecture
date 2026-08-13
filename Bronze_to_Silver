@@ -1,0 +1,70 @@
+"""
+Bronze -> Silver
+
+Silver layer takes raw bronze data and applies cleaning rules:
+- remove duplicates
+- fix inconsistent text casing
+- drop rows with critical nulls, fill non critical nulls
+- correct data types
+- join customers with orders into one clean table
+"""
+
+import pandas as pd
+import os
+
+os.makedirs("silver", exist_ok=True)
+
+customers = pd.read_csv("bronze/raw_customers.csv")
+orders = pd.read_csv("bronze/raw_orders.csv")
+
+# --- clean customers ---
+customers["customer_name"] = customers["customer_name"].str.title()
+customers["customer_name"] = customers["customer_name"].fillna("Unknown Customer")
+
+customers["city"] = customers["city"].str.title()
+customers["city"] = customers["city"].fillna("Unknown City")
+
+customers["signup_date"] = pd.to_datetime(customers["signup_date"])
+
+# --- clean orders ---
+orders = orders.drop_duplicates()
+
+orders["status"] = orders["status"].str.lower()
+orders["status"] = orders["status"].fillna("unknown")
+
+orders["category"] = orders["category"].fillna("Uncategorized")
+
+# quantity is critical for revenue math, drop rows missing it
+orders = orders.dropna(subset=["quantity"])
+orders["quantity"] = orders["quantity"].astype(int)
+
+# unit_price missing values are filled with the category median, not dropped
+orders["unit_price"] = orders.groupby("category")["unit_price"] \
+    .transform(lambda x: x.fillna(x.median()))
+
+orders["order_date"] = pd.to_datetime(orders["order_date"])
+orders["order_total"] = orders["quantity"] * orders["unit_price"]
+
+# only completed orders count as valid business events downstream
+orders_valid = orders[orders["status"] == "completed"].copy()
+
+# --- join orders with customers ---
+silver_orders = orders_valid.merge(
+    customers[["customer_id", "customer_name", "city"]],
+    on="customer_id",
+    how="left"
+)
+
+silver_orders = silver_orders[[
+    "order_id", "customer_id", "customer_name", "city",
+    "category", "quantity", "unit_price", "order_total",
+    "order_date", "status"
+]]
+
+silver_orders.to_parquet("silver/orders_clean.parquet", index=False)
+customers.to_parquet("silver/customers_clean.parquet", index=False)
+
+print("silver layer created")
+print("orders_clean.parquet     rows:", len(silver_orders))
+print("customers_clean.parquet  rows:", len(customers))
+print("nulls remaining in orders_clean:", int(silver_orders.isna().sum().sum()))

@@ -1,0 +1,50 @@
+"""
+Compares querying the silver parquet file with pandas vs DuckDB.
+Same question asked both ways: total revenue and order count per city.
+"""
+
+import pandas as pd
+import duckdb
+import time
+
+PARQUET_PATH = "silver/orders_clean.parquet"
+
+# --- pandas approach ---
+start = time.perf_counter()
+
+df = pd.read_parquet(PARQUET_PATH)
+pandas_result = df.groupby("city").agg(
+    total_revenue=("order_total", "sum"),
+    total_orders=("order_id", "count")
+).reset_index().sort_values("total_revenue", ascending=False)
+
+pandas_time = time.perf_counter() - start
+
+# --- duckdb approach ---
+start = time.perf_counter()
+
+duckdb_result = duckdb.sql(f"""
+    SELECT
+        city,
+        ROUND(SUM(order_total), 2) AS total_revenue,
+        COUNT(order_id) AS total_orders
+    FROM read_parquet('{PARQUET_PATH}')
+    GROUP BY city
+    ORDER BY total_revenue DESC
+""").df()
+
+duckdb_time = time.perf_counter() - start
+
+print("pandas result")
+print(pandas_result.round(2).to_string(index=False))
+print()
+print("duckdb result")
+print(duckdb_result.to_string(index=False))
+print()
+print("pandas time:  {:.5f} sec".format(pandas_time))
+print("duckdb time:  {:.5f} sec".format(duckdb_time))
+print()
+print("note: on a small file like this, timing differences are not")
+print("meaningful. duckdb pulls ahead on large files because it reads")
+print("parquet column by column and never loads the full table into")
+print("memory the way pandas does.")

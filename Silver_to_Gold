@@ -1,0 +1,50 @@
+"""
+Silver -> Gold
+
+Gold layer holds business ready, aggregated tables meant for reporting
+and analytics. No more row level cleaning here, only summarization.
+"""
+
+import pandas as pd
+import os
+
+os.makedirs("gold", exist_ok=True)
+
+orders = pd.read_parquet("silver/orders_clean.parquet")
+
+# --- revenue by category ---
+revenue_by_category = orders.groupby("category").agg(
+    total_revenue=("order_total", "sum"),
+    total_orders=("order_id", "count"),
+    avg_order_value=("order_total", "mean")
+).reset_index().sort_values("total_revenue", ascending=False)
+
+revenue_by_category["total_revenue"] = revenue_by_category["total_revenue"].round(2)
+revenue_by_category["avg_order_value"] = revenue_by_category["avg_order_value"].round(2)
+
+# --- monthly revenue trend ---
+orders["order_month"] = orders["order_date"].dt.to_period("M").astype(str)
+
+monthly_revenue = orders.groupby("order_month").agg(
+    total_revenue=("order_total", "sum"),
+    total_orders=("order_id", "count")
+).reset_index().sort_values("order_month")
+
+monthly_revenue["total_revenue"] = monthly_revenue["total_revenue"].round(2)
+
+# --- top customers by spend ---
+top_customers = orders.groupby(["customer_id", "customer_name", "city"]).agg(
+    total_spent=("order_total", "sum"),
+    total_orders=("order_id", "count")
+).reset_index().sort_values("total_spent", ascending=False).head(10)
+
+top_customers["total_spent"] = top_customers["total_spent"].round(2)
+
+revenue_by_category.to_parquet("gold/revenue_by_category.parquet", index=False)
+monthly_revenue.to_parquet("gold/monthly_revenue.parquet", index=False)
+top_customers.to_parquet("gold/top_customers.parquet", index=False)
+
+print("gold layer created")
+print("revenue_by_category  rows:", len(revenue_by_category))
+print("monthly_revenue      rows:", len(monthly_revenue))
+print("top_customers        rows:", len(top_customers))

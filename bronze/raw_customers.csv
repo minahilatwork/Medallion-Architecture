@@ -1,0 +1,21 @@
+customer_id,customer_name,city,signup_date
+1,Ali Raza,Lahore,2023-01-01
+2,sana khan,karachi,2023-01-16
+3,Bilal Ahmed,Lahore,2023-01-31
+4,,Islamabad,2023-02-15
+5,Ayesha Malik,,2023-03-02
+6,hassan sheikh,Lahore,2023-03-17
+7,Zara Iqbal,Karachi,2023-04-01
+8,Usman Tariq,islamabad,2023-04-16
+9,Mahnoor Butt,Lahore,2023-05-01
+10,,Multan,2023-05-16
+11,Faisal Qureshi,Karachi,2023-05-31
+12,hina saeed,Lahore,2023-06-15
+13,Omar Farooq,,2023-06-30
+14,Sadia Yousaf,Islamabad,2023-07-15
+15,Kamran Aziz,Lahore,2023-07-30
+16,nadia hussain,multan,2023-08-14
+17,Tariq Mehmood,Karachi,2023-08-29
+18,Iqra Siddiqui,Lahore,2023-09-13
+19,Waleed Anjum,Islamabad,2023-09-28
+20,Rabia Noor,Lahore,2023-10-13
